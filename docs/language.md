@@ -19,6 +19,8 @@ Components
 Variables/Data Types
 ====================
 
+Most thing stored in registers.  I'm thinking about having a heap bit of some sort and being able to call things to store into the heap.  
+
 
 
 
@@ -34,3 +36,7 @@ Operands
  * Bitwise Or
 
  
+API
+===
+
+Programs WILL be written with certain API's in mind.
