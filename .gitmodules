@@ -1,0 +1,6 @@
+[submodule "client/qrcodejs"]
+	path = client/qrcodejs
+	url = git@github.com:davidshimjs/qrcodejs.git
+[submodule "client/bootstrap"]
+	path = client/bootstrap
+	url = git@github.com:twbs/bootstrap.git
