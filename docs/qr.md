@@ -36,5 +36,5 @@ Used for multi QR uploads.  I bet you can guess what the names mean
 
 encrypted parts
 ---------------
-Mainly the program, gzip and  XOR'd by OTP pass(in that order).
+Mainly the program, gzip and  XOR'd by OTP (in that order).
 

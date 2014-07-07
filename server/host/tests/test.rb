@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 #stdout/stderr test
 $stdout.puts "Hello world to 1"
 $stderr.puts "Hello world to 2"

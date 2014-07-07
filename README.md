@@ -5,7 +5,7 @@ Ugh, no clue where to start yet.  This is huge, so I'm not sure where I'm
 going to start.
 
 
-Componants
+Components
 ==========
 
  * Language

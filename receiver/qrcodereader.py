@@ -1,4 +1,6 @@
 #!/usr/bin/python
+#
+# shamelessly stolen example code
 
 from sys import argv
 import zbar
