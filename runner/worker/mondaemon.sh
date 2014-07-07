@@ -7,6 +7,7 @@ STATUS_FILE=/tmp/runner.status
 MNT_DEST="/mnt"
 TIMEOUT=120
 STRACE_CMD="timeout $TIMEOUTE -s KILL strace -o $MNT_DEST/strace -f -e trace=file -u nobody"
+POST_RUN_HOOK="/sbin/poweroff"
 
 check_new() {
     mnt_line=$(blkid | grep LABEL="RUN_THIS")
@@ -37,6 +38,11 @@ run_code() {
         cat $MNT_DEST/0 | $STRACE_CMD $MNT_DEST/prog 1> $MNT_DEST/1 2> $MNT_DEST/2
     else
         $STRACE_CMD $MNT_DEST/prog 1> $MNT_DEST/1 2> $MNT_DEST/2
+    fi
+    umount $MNT_DEST
+
+    if [ -n "$POST_RUN_HOOK" -a -x "$POST_RUN_HOOK" ]; then
+        $POST_RUN_HOOK
     fi
 }
 
