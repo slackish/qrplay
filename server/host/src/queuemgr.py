@@ -22,9 +22,14 @@ DEFAULTS = {
         "IN_DIR": "/tmp/inqueue",
         "RUN_DIR": "/var/local/deckard/runqueue",
         "OUT_DIR": "/var/local/deckard/donequeue",
-        "ARCH_HOOK": "./archive"
+        "ARCH_HOOK": "./archive", 
+        "RUNNERS": 4,
+        "VM_LABEL": "deckard_%d",
         }
 
+###############################################################################
+# File watching
+###############################################################################
 
 class FProcessor(ProcessEvent):
     """
@@ -65,6 +70,22 @@ def file_watcher(in_dir, run_dir, logger, file_comms):
             notifier.stop()
             break
 
+###############################################################################
+# VM Handling
+###############################################################################
+# Need to Archive
+# Ensure a VM is available
+# Run Thing
+# Wait for 
+
+def vm(ident, label, file_comms, logger):
+    # XXX left off here
+    pass
+
+###############################################################################
+# Startup 
+###############################################################################
+
 def validate(args):
     passing = True
     log = []
@@ -83,7 +104,6 @@ def validate(args):
         print "Failed to start.  Run the following:"
         print "\n".join(log)
         sys.exit(1)
-
 
 
 def main(args):
