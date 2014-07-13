@@ -3,11 +3,19 @@
 
 import libvirt
 
+DISK_TEMPLATE = \
+'''<disk type="file" device="disk">
+        <driver name="qemu" type="raw" />
+        <source file="{path}"/>
+        <target bus='virtio' dev="{dev}"/>
+</disk>
+'''
+
 
 class LibVirt:
     
-    def __init__(self, dsn, label, workers, logger, \
-                        pre_hook="./prevm", post_hook="./postvm"):
+    def __init__(self, label, workers, logger, dsn='qemu:///system', \
+                    pre_hook="./prevm", post_hook="./postvm"):
         self.dsn = dsn
         self.dsn = logger
         self.pre_hook = pre_hook
@@ -17,12 +25,29 @@ class LibVirt:
         self._validate()
 
     def _validate(self):
-        
-        
+        """
+        Ensure all VMs are DTF (down to finish)
+        """
+        for i in xrange(1,self.workers+1):
+            label = self.label % i
+            if not self._status(label):
+                raise Exception("VM %s not DTF" % label)
 
-    def start(self, label):
-        """ Fire up a machine """
-        pass
+
+    def start(self, label, diskimg):
+        """ 
+        Fire up a machine 
+
+        http://virtips.virtwind.com/2012/05/attaching-disk-via-libvirt-using-python/
+        """
+        self.logger.debug("firing up %s" % label)
+
+        conn = self._connect()
+
+        # start vm from snapshot
+        # build disk image
+        # attach it
+        
 
     def force_stop(self, label):
         """ Fire up a machine """
@@ -59,6 +84,8 @@ class LibVirt:
         except libvirt.libvirtError:
             self.logger.error("wut? no status")
             raise
+        finally:
+            self._disconnect(conn)
         
         if state[0] == 3 or state[0] == 4 or state[0] == 5:
             return True
@@ -78,6 +105,7 @@ class LibVirt:
             logger.error("Unable to connect to libvirt")
             raise
             
+
     def _disconnect(self, conn):
         """ 
         disconnect from libvirt system 
@@ -102,6 +130,7 @@ class LibVirt:
             if self.label % i == label:
                 return True
         return False
+
 
     def _latest_snap(self, label):
         """
