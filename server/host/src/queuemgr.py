@@ -78,6 +78,19 @@ def file_watcher(in_dir, run_dir, logger, file_comms):
 # Run Thing
 # Wait for 
 
+def fire_off_vms(args, file_comms, logger):
+    """
+    initialize vms
+    """
+    vm_managers = []
+    for i in xrange(multiprocessing.cpu_count()):
+        vm_managers.append(Process(target=vm, args=(i,
+                                                    args.label,
+                                                    file_comms,
+                                                    logger)))
+
+                                            
+
 def vm(ident, label, file_comms, logger):
     # XXX left off here
     pass
@@ -141,6 +154,11 @@ if __name__ == '__main__':
             help='Executable for archival',
             default=DEFAULTS["ARCH_HOOK"]
             )
+    parser.add_argument('-l','--label', 
+            help='VM label to pull from',
+            default=DEFAULTS["VM_LABEL"]
+            )
+    args = vars(parser.parse_args())
     args = vars(parser.parse_args())
 
     logging.basicConfig(level=logging.DEBUG)
