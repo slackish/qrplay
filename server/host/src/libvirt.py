@@ -119,6 +119,10 @@ class LibVirt:
         # attach diskimg
         if diskimg != None:
         #XXX left off here
+            self.logger.debug("attempting to attach %s to %s" % \
+                                (diskimg, label))
+            template = DISK_TEMPLATE.dormat(path=diskimg, dev="vdb")
+            vm.attachDevice(template)
 
         
 
