@@ -2,6 +2,7 @@
 
 
 import libvirt
+import os
 import subprocess
 import time
 
@@ -23,7 +24,7 @@ CRASHED,
 PMSUSPENDED,
 LAST) = range(9)
 
-class LibVirt:
+class LibVirtGlue:
 
     def __init__(self, label, workers, logger, dsn='qemu:///system', \
                     pre_hook="./prevm", post_hook="./postvm", \
@@ -34,8 +35,8 @@ class LibVirt:
         self.post_hook = post_hook
         self.disk_hook = disk_hook
         self.label = label
-        self.workers = workers
-        self._validate()
+        self.workers = int(workers)
+        #self._validate()
         self._connected = False
         self._conn = None
         self._conn_count = 0
@@ -86,7 +87,7 @@ class LibVirt:
 
         conn = self._connect()
         # start vm from snapshot
-        vm, snap = self._latest_snapshot(label)
+        vm, snap = self._latest_snap(label)
 
         if vm != None and snap != None:
             try:
@@ -121,7 +122,7 @@ class LibVirt:
         #XXX left off here
             self.logger.debug("attempting to attach %s to %s" % \
                                 (diskimg, label))
-            template = DISK_TEMPLATE.dormat(path=diskimg, dev="vdb")
+            template = DISK_TEMPLATE.format(path=diskimg, dev="vdb")
             vm.attachDevice(template)
 
         
@@ -147,7 +148,7 @@ class LibVirt:
         _, cur_state = self.status(label)
 
         waittime = 0
-        while cur_state != state:
+        while cur_state != desired_state:
             time.sleep(1)
             waittime += 1
             _, cur_state = self.status(label)
@@ -223,7 +224,7 @@ class LibVirt:
         """
         if self._connected and self._conn_count == 1:
             try:
-                conn.close()
+                self._conn.close()
                 self._conn = None
                 self._connected = False
                 self._conn_count = 1
