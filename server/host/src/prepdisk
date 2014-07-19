@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+#  Create a disk image and stick a file in it
+
+set -e 
+
+PREPPED_IMAGE="/tmp/prepped"
+LABEL="RUN_THIS"
+SIZE=20     # size in MB
+
+if [ "$#" == "0" ]; then
+    echo "I need at least one thing to copy in"
+    exit 1
+fi
+
+program="$1"
+
+# prepare initial disk, if needed
+if [ ! -e "${PREPPED_IMAGE}" ]; then
+    # lets prep an image
+    tmpdisk=$(mktemp)
+    dd if=/dev/zero of=${tmpdisk} bs=1M count=${SIZE} 1>/dev/null 2>&1
+    mkfs.ext4 -q -F -L "${LABEL}" ${tmpdisk}
+    mv ${tmpdisk} ${PREPPED_IMAGE}
+fi
+
+
+new_disk=$(mktemp)
+dest_mount=$(mktemp -d)
+
+cp ${PREPPED_IMAGE} ${new_disk}
+
+mount -o loop ${new_disk} ${dest_mount}
+
+while (( "$#" )); do
+    cp $1 ${dest_mount}
+shift
+done
+
+umount ${dest_mount}
+rmdir ${dest_mount}
+
+echo ${new_disk}
+
+exit 0
