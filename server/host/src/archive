@@ -2,5 +2,4 @@
 #
 # basically i just need to scp some stuff to another host
 
-
-pass
+scp -i id_rsa "$@" dumont:/tmp/$(mktemp -u infile.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX)

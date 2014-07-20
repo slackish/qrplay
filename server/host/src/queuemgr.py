@@ -21,10 +21,10 @@ from pyinotify import WatchManager, Notifier, Notifier, EventsCodes, ProcessEven
 DEFAULTS = {
         "IN_DIR": "/tmp/inqueue",
         "RUN_DIR": "/var/local/deckard/runqueue",
-        "OUT_DIR": "/var/local/deckard/donequeue",
+        "OUT_DIR": "/var/local/deckard/reports",
         "ARCH_HOOK": "./archive", 
-        "RUNNERS": 4,
-        "VM_LABEL": "deckard_%d",
+        "RUNNERS": 1,
+        "VM_LABEL": "runner_%d",
         }
 
 ###############################################################################
@@ -36,27 +36,58 @@ class FProcessor(ProcessEvent):
     Watch for new jobs coming in and pass accordingly
     """
     
-    def __init__(self, in_dir, run_dir, logger, file_comms):
+    def __init__(self, in_dir, run_dir, out_dir, logger, archive, file_comms):
         """
         XXX: Will be filled out
         """
         self.logger = logger
+        self.archive = archive
         self.comms = file_comms
+        self.in_dir = in_dir
         self.run_dir = run_dir
+        self.out_dir = out_dir
         super(ProcessEvent, self).__init__()
+
+
+    def _find_latest(self):
+        """
+        grab the highest report number and set self.count to it
+        """
+        highest = 1
+        dirs = os.listdir(self.out_dir)
+        dirs.extend(os.listdir(self.run_dir)
+        for f in dirs:
+            try:
+                canidate = int(f)
+                if canidate > highest:
+                    highest = canidate
+            except:
+                pass
+        self.count = highest
 
 
     def process_IN_CLOSE_WRITE(self, event):
         """
         File came in! lets do something
         """
+        # archive
+        infile = os.path.join(event.path, event.name)
         self.logger.info("New Job: %s" %  os.path.join(event.path, event.name))
+        result = subprocess.call([self.archive, infile])
+        if result == 0:
+            self.logger.info("archived %s" % infile)
+        else:
+            self.logger.warn("failed to archive %s" % infile)
+        # move to running directory
+
+        # signal to start
 
 
-def file_watcher(in_dir, run_dir, logger, file_comms):
+
+def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms):
     wm = WatchManager()
     mask = EventsCodes.ALL_FLAGS['IN_CLOSE_WRITE']
-    notifier = Notifier(wm, FProcessor(in_dir, run_dir, logger, file_comms))
+    notifier = Notifier(wm, FProcessor(in_dir, run_dir, out_dir, logger, archive, file_comms))
     wdd = wm.add_watch(in_dir, mask, rec=True)
     while True: 
         try:
@@ -123,7 +154,9 @@ def main(args):
     file_comms = Queue()
     fw = Process(target=file_watcher, args=(args['indir'], 
                                             args['rundir'], 
+                                            args['outdir'], 
                                             logging, 
+                                            args['archive'], 
                                             file_comms)
                  )
     fw.start()
