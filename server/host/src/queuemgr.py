@@ -8,7 +8,7 @@ pyinotify
 """
 
 
-import libvirt
+import libvirtglue
 import logging
 import os
 import sys
@@ -22,7 +22,7 @@ DEFAULTS = {
         "IN_DIR": "/tmp/inqueue",
         "RUN_DIR": "/var/local/deckard/runqueue",
         "OUT_DIR": "/var/local/deckard/reports",
-        "ARCH_HOOK": "./archive", 
+        "ARCH_HOOK": "./archive_ext", 
         "RUNNERS": 1,
         "VM_LABEL": "runner_%d",
         }
@@ -78,10 +78,16 @@ class FProcessor(ProcessEvent):
             self.logger.info("archived %s" % infile)
         else:
             self.logger.warn("failed to archive %s" % infile)
+
         # move to running directory
+        self.highest += 1
+        rundir = os.path.join(self.run_dir, str(self.highest))
+        os.mkdir(rundir)
+        shutil.move(infile, rundir)
+        runfile = os.path.join(rundir, event.name)
 
         # signal to start
-
+        self.file_comms.put(runfile)
 
 
 def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms):
@@ -104,7 +110,6 @@ def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms):
 ###############################################################################
 # VM Handling
 ###############################################################################
-# Need to Archive
 # Ensure a VM is available
 # Run Thing
 # Wait for 
@@ -114,17 +119,19 @@ def fire_off_vms(args, file_comms, logger):
     initialize vms
     """
     vm_managers = []
-    for i in xrange(multiprocessing.cpu_count()):
+    for i in xrange(1, 1 + multiprocessing.cpu_count()):
+        label = self.label % i
         vm_managers.append(Process(target=vm, args=(i,
                                                     args.label,
                                                     file_comms,
                                                     logger)))
+        vm_managers[-1].start()
 
-                                            
 
 def vm(ident, label, file_comms, logger):
-    # XXX left off here
-    pass
+    libvirtglue.LibVirtGlue(label, file_comms, logger)
+    
+    
 
 ###############################################################################
 # Startup 
@@ -159,6 +166,7 @@ def main(args):
                                             args['archive'], 
                                             file_comms)
                  )
+    fire_off_vms()
     fw.start()
     fw.join()
 

@@ -26,29 +26,39 @@ LAST) = range(9)
 
 class LibVirtGlue:
 
-    def __init__(self, label, workers, logger, dsn='qemu:///system', \
+    def __init__(self, label, file_comms, logger, dsn='qemu:///system', \
                     pre_hook="./prevm", post_hook="./postvm", \
-                    disk_hook="./prepdisk"):
+                    disk_hook="./prepdisk", store="./store", runtime=180):
         self.dsn = dsn
         self.logger = logger
         self.pre_hook = pre_hook
         self.post_hook = post_hook
         self.disk_hook = disk_hook
+        self.store = store
         self.label = label
-        self.workers = int(workers)
+        self.file_comms = file_comms
+        self.runtime = runtime
         #self._validate()
         self._connected = False
         self._conn = None
         self._conn_count = 0
+        self.diskimg = None
+
+
+    def _status(self):
+        """
+        attempt to find libvirt vm with this label
+        """
+        #XXX
+        pass
+
 
     def _validate(self):
         """
         Ensure all VMs are DTF (down to finish)
         """
-        for i in xrange(1,self.workers+1):
-            label = self.label % i
-            if not self._status(label):
-                raise Exception("VM %s not DTF" % label)
+        if not self._status(self.label):
+            raise Exception("VM %s not DTF" % self.label)
 
         if not (self.pre_hook != None and os.path.isfile(self.pre_hook) and \
                         os.access(self.pre_hook, os.X_OK)):
@@ -61,17 +71,16 @@ class LibVirtGlue:
             self.disk_hook = None
 
 
-    def start(self, label, diskimg_param):
+    def start(self, diskimg_param):
         """ 
         Fire up a machine 
 
         http://virtips.virtwind.com/2012/05/attaching-disk-via-libvirt-using-python/
 
-        @params label: label of the vm to fire up
         @params diskimg_param: the file or files to pack in the disk image
         @returns: boolen true if fired up, false if cannot
         """
-        self.logger.debug("firing up %s" % label)
+        self.logger.debug("firing up %s" % self.label)
 
         # pre hook
         if self.pre_hook != None:
@@ -80,20 +89,21 @@ class LibVirtGlue:
             else:
                 self.logger.debug("Prehook '%s' returned error" % self.pre_hook)
 
-        runnable, state = self.status(label)
+        runnable, state = self.status(self.label)
         if not runnable:
             self.logger.warn("VM is in %d state" % state)
             return false
 
         conn = self._connect()
+
         # start vm from snapshot
-        vm, snap = self._latest_snap(label)
+        vm, snap = self._latest_snap(self.label)
 
         if vm != None and snap != None:
             try:
                 vm.revertToSnapshot(snap, flags=0)
             except libvirt.libvirtError:
-                self.logger.warn("Unable to restore snapshot on %s" % label)
+                self.logger.warn("Unable to restore snapshot on %s" % self.label)
                 self._disconnect()
                 return False
 
@@ -116,54 +126,88 @@ class LibVirtGlue:
         else:
             self.logger.warn("Forgoing building disk image entirely")
 
-        self.wait_status(label, RUNNING)
+        self.wait_status(RUNNING)
         # attach diskimg
         if diskimg != None:
-        #XXX left off here
             self.logger.debug("attempting to attach %s to %s" % \
-                                (diskimg, label))
+                                (diskimg, self.label))
             template = DISK_TEMPLATE.format(path=diskimg, dev="vdb")
             vm.attachDevice(template)
+            self.diskimg = diskimg
+
+        self._disconnect()
+
+    
+    def run_job(self):
+        """
+        Wait for a job to come in and execute it.
+        """
+        while True:
+            try:
+                jobfile = self.file_comms.get()
+                self.logger.info("Received jobfile %s for %s" % (jobfile, \
+                                                self.label))
+
+                # start
+                self.start(jobfile)
+
+                # wait for completion
+                self.wait_status(SHUTOFF, timeout=self.runtime)
+                self.logger.info("jobfile %s completed on %s" % (jobfile, \
+                                                self.label))
+
+                # prep things to store
+
+
+
+
+                # run post-game thing as needed
+                subprocess.call([self.store, self.diskimg,....)
+
+                # reset
+                self.cleanup()
+            
 
         
 
-    def force_stop(self, label):
+    def force_stop(self):
         """ Fire up a machine """
         pass
 
-    def cleanup(self, label):
+
+    def cleanup(self):
         """ cleanup and reset a VM """
         pass
 
-    def wait_status(self, label, desired_state, timeout=120):
+
+    def wait_status(self, desired_state, timeout=120):
         """
         Waits a period of time for a VM to enter a state
         
-        @param label: vm to check
         @param desired_state: the state to wait for
         @param timeout: peroid of time to wait for state change
         """
         conn = self._connect()
 
-        _, cur_state = self.status(label)
+        _, cur_state = self.status(self.label)
 
         waittime = 0
         while cur_state != desired_state:
             time.sleep(1)
             waittime += 1
-            _, cur_state = self.status(label)
+            _, cur_state = self.status(self.label)
             if waittime >= timeout:
                 self.logger.critical("ZOMG! %s not entering state %d" % \
-                                    (label, desired_state))
+                                    (self.label, desired_state))
                 raise Exception("ZOMG! %s not entering state %d" % \
-                                    (label, desired_state))
+                                    (self.label, desired_state))
         self._disconnect()
 
-    def status(self, label):
+
+    def status(self):
         """ 
         get the status of a VM 
 
-        @param label: vm to check
         @returns: a tuple, first value being true if ready, otherwise false
                 second value is the actual found status
         """
@@ -182,7 +226,7 @@ class LibVirtGlue:
 
         conn = self._connect()
         try:
-            vm = conn.lookupByName(label)
+            vm = conn.lookupByName(self.label)
             state = vm.state(flags=0)
         except libvirt.libvirtError:
             self.logger.error("wut? no status")
@@ -237,38 +281,23 @@ class LibVirtGlue:
             self.logger.error("received disconnect without a matching connect")
 
 
-
-    def valid_label(self, label):
-        """
-        sees if the label is valid in what the program was setup for
-
-        @param label: the label to check
-        @returns: true if ok, otherwise false
-        """
-        for i in xrange(1,self.workers+1):
-            if self.label % i == label:
-                return True
-        return False
-
-
-    def _latest_snap(self, label):
+    def _latest_snap(self):
         """
         grabs the latest snapshot
 
-        @param label: the label to check
         @returns: pointer to vm and snapshot in a tuple
         """
         conn = self._connect()
         try:
-            vm = conn.lookupByName(label)
+            vm = conn.lookupByName(self.label)
             snapshot = vm.hasCurrentSnapshot(flags=0)
             if snapshot:
                 return vm, vm.snapshotCurrent(flags=0)
             else:
-                raise Exception("No current snapshot for %s" % label)
+                raise Exception("No current snapshot for %s" % self.label)
         except libvirt.libvirtError:
             self._disconnect()
-            self.logger.error("No such machine named %s" % label)
+            self.logger.error("No such machine named %s" % self.label)
             raise 
         finally:
             self._disconnect()

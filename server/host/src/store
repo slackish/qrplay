@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then 
+    echo "I need a disk to mount"
+    exit 1
+fi
+
+if [ -z "$2" ]; then 
+    echo "I need a place to store the files
+    exit 1
+fi
+
+diskimg=$1
+destdir=$1
+mountdir=$(mktemp -d)
+
+mount -o loop ${diskimg} ${mountdir}
+mnterrno=$?
+
+if [ "$mnterrno" -gt 0 ]; then
+    echo "Failed on mount"
+    rmdir ${mountdir}
+    exit 2
+fi
+
+cp -r ${mountdir} ${destdir}
+
+umount ${mountdir}
+
+rmdir ${mountdir}
