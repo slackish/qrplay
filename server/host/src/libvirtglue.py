@@ -160,7 +160,6 @@ class LibVirtGlue:
 
 
 
-
                 # run post-game thing as needed
                 subprocess.call([self.store, self.diskimg,....)
 
