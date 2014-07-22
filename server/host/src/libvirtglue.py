@@ -26,7 +26,7 @@ LAST) = range(9)
 
 class LibVirtGlue:
 
-    def __init__(self, label, file_comms, logger, dsn='qemu:///system', \
+    def __init__(self, label, file_comms, logger, store_dir, dsn='qemu:///system', \
                     pre_hook="./prevm", post_hook="./postvm", \
                     disk_hook="./prepdisk", store="./store", runtime=180):
         self.dsn = dsn
@@ -157,7 +157,8 @@ class LibVirtGlue:
                                                 self.label))
 
                 # prep things to store
-
+                basejobdir = os.basename(jobfile)
+                shutil.move(basejobdir, 
 
 
                 # run post-game thing as needed
