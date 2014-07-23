@@ -124,12 +124,13 @@ def fire_off_vms(args, file_comms, logger):
         vm_managers.append(Process(target=vm, args=(i,
                                                     args.label,
                                                     file_comms,
-                                                    logger)))
+                                                    logger,
+                                                    args.outdir)))
         vm_managers[-1].start()
 
 
-def vm(ident, label, file_comms, logger):
-    libvirtglue.LibVirtGlue(label, file_comms, logger)
+def vm(ident, label, file_comms, logger, store_dir):
+    libvirtglue.LibVirtGlue(label, file_comms, logger, store_dir)
     
     
 
@@ -185,7 +186,7 @@ if __name__ == '__main__':
             )
     parser.add_argument('-r','--rundir', 
             help='Directory to store temporary data',
-            default=DEFAULTS["OUT_DIR"]
+            default=DEFAULTS["RUN_DIR"]
             )
     parser.add_argument('-o','--outdir', 
             help='Directory to write data',

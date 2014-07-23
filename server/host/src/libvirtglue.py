@@ -35,6 +35,7 @@ class LibVirtGlue:
         self.post_hook = post_hook
         self.disk_hook = disk_hook
         self.store = store
+        self.store_dir = store_dir
         self.label = label
         self.file_comms = file_comms
         self.runtime = runtime
@@ -158,11 +159,11 @@ class LibVirtGlue:
 
                 # prep things to store
                 basejobdir = os.basename(jobfile)
-                shutil.move(basejobdir, 
+                shutil.move(basejobdir, self.store_dir)
 
 
                 # run post-game thing as needed
-                subprocess.call([self.store, self.diskimg,....)
+                subprocess.call([self.store, self.diskimg, self.store_dir)
 
                 # reset
                 self.cleanup()
