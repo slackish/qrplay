@@ -6,12 +6,12 @@ if [ -z "$1" ]; then
 fi
 
 if [ -z "$2" ]; then 
-    echo "I need a place to store the files
+    echo "I need a place to store the files"
     exit 1
 fi
 
 diskimg=$1
-destdir=$1
+destdir=$2
 mountdir=$(mktemp -d)
 
 mount -o loop ${diskimg} ${mountdir}

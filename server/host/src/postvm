@@ -1,3 +1,16 @@
 #!/bin/bash
 
+IMG_BASE="/var/lib/libvirt/images"
+
+if [ -z "$1" ]; then
+    echo "I need the label"
+    exit 1
+fi
+
+label=$i
+
+if [ -e "${IMG_BASE}/${label}.qcow2.backup" ]; then
+    cp "${IMG_BASE}/${label}.qcow2.backup" "${IMG_BASE}/${label}.qcow2"
+fi
+
 exit 0

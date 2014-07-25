@@ -85,7 +85,7 @@ class LibVirtGlue:
 
         # pre hook
         if self.pre_hook != None:
-            if subprocess.call([self.pre_hook]):
+            if subprocess.call([self.pre_hook, self.label]):
                 self.logger.debug("Prehook '%s' ok" % self.pre_hook)
             else:
                 self.logger.debug("Prehook '%s' returned error" % self.pre_hook)
@@ -161,15 +161,12 @@ class LibVirtGlue:
                 basejobdir = os.basename(jobfile)
                 shutil.move(basejobdir, self.store_dir)
 
-
                 # run post-game thing as needed
-                subprocess.call([self.store, self.diskimg, self.store_dir)
+                subprocess.call([self.store, self.diskimg, self.store_dir])
 
                 # reset
                 self.cleanup()
             
-
-        
 
     def force_stop(self):
         """ Fire up a machine """
@@ -178,7 +175,7 @@ class LibVirtGlue:
 
     def cleanup(self):
         """ cleanup and reset a VM """
-        pass
+        subprocess.call([self.post_hook, self.label])
 
 
     def wait_status(self, desired_state, timeout=120):
