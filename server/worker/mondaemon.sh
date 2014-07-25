@@ -6,7 +6,7 @@ RUNNING="RUNNING"
 STATUS_FILE=/tmp/runner.status
 MNT_DEST="/mnt"
 TIMEOUT=120
-STRACE_CMD="timeout $TIMEOUTE -s KILL strace -o $MNT_DEST/strace -f -e trace=file -u nobody"
+STRACE_CMD="timeout -s KILL $TIMEOUT strace -o $MNT_DEST/strace -f -e trace=file -u nobody"
 POST_RUN_HOOK="/sbin/poweroff"
 
 check_new() {

@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 import traceback
+import shutil
 
 DISK_TEMPLATE = \
 '''<disk type="file" device="disk">
@@ -24,6 +25,8 @@ SHUTOFF,
 CRASHED,
 PMSUSPENDED,
 LAST) = range(9)
+
+JOB_MODULES = { "ruby": "./run_modules/ruby.sh" }
 
 class LibVirtGlue:
 
@@ -143,6 +146,17 @@ class LibVirtGlue:
 
         self._disconnect()
 
+    def job_module(self, jobfile):
+        """
+        Convert the file to what we need.
+        """
+        outdir = os.path.dirname(jobfile)
+        new_jobfile = os.path.join(outdir, "prog")
+        subprocess.call([JOB_MODULES['ruby'], jobfile, new_jobfile]) 
+
+        return new_jobfile
+       
+
     
     def run_job(self):
         """
@@ -150,9 +164,14 @@ class LibVirtGlue:
         """
         while True:
             try:
+                self.logger.info("%s is DTF" % self.label)
                 jobfile = self.file_comms.get()
                 self.logger.info("Received jobfile %s for %s" % (jobfile, \
                                                 self.label))
+
+                # figure out job module, assume ruby for now
+                jobfile = self.job_module(jobfile)
+                self.logger.info("converted %s into ruby" % jobfile)
 
                 # start
                 self.start(jobfile)
@@ -163,7 +182,7 @@ class LibVirtGlue:
                                                 self.label))
 
                 # prep things to store
-                basejobdir = os.basename(jobfile)
+                basejobdir = os.path.dirname(jobfile)
                 shutil.move(basejobdir, self.store_dir)
 
                 # run post-game thing as needed
