@@ -5,6 +5,7 @@ import libvirt
 import os
 import subprocess
 import time
+import traceback
 
 DISK_TEMPLATE = \
 '''<disk type="file" device="disk">
@@ -45,6 +46,9 @@ class LibVirtGlue:
         self._conn_count = 0
         self.diskimg = None
 
+        self.logger.info("%s VM Manager fired up" % self.label)
+        self.run_job()
+
 
     def _status(self):
         """
@@ -58,7 +62,7 @@ class LibVirtGlue:
         """
         Ensure all VMs are DTF (down to finish)
         """
-        if not self._status(self.label):
+        if not self._status():
             raise Exception("VM %s not DTF" % self.label)
 
         if not (self.pre_hook != None and os.path.isfile(self.pre_hook) and \
@@ -90,7 +94,7 @@ class LibVirtGlue:
             else:
                 self.logger.debug("Prehook '%s' returned error" % self.pre_hook)
 
-        runnable, state = self.status(self.label)
+        runnable, state = self.status()
         if not runnable:
             self.logger.warn("VM is in %d state" % state)
             return false
@@ -98,7 +102,7 @@ class LibVirtGlue:
         conn = self._connect()
 
         # start vm from snapshot
-        vm, snap = self._latest_snap(self.label)
+        vm, snap = self._latest_snap()
 
         if vm != None and snap != None:
             try:
@@ -111,6 +115,7 @@ class LibVirtGlue:
         # build disk image
         if self.disk_hook:
             try:
+                self.logger.info("%s performing disk hook" % self.label)
                 diskimg = subprocess.check_output([self.disk_hook, \
                                             diskimg_param])
                 diskimg = diskimg.strip()
@@ -162,10 +167,14 @@ class LibVirtGlue:
                 shutil.move(basejobdir, self.store_dir)
 
                 # run post-game thing as needed
+                self.logger.info("%s performing store" % self.label)
                 subprocess.call([self.store, self.diskimg, self.store_dir])
 
                 # reset
                 self.cleanup()
+            except:
+                self.logger.critical(traceback.format_exc())
+        return
             
 
     def force_stop(self):
@@ -175,6 +184,7 @@ class LibVirtGlue:
 
     def cleanup(self):
         """ cleanup and reset a VM """
+        self.logger.info("%s performing cleanup" % self.label)
         subprocess.call([self.post_hook, self.label])
 
 
@@ -187,13 +197,13 @@ class LibVirtGlue:
         """
         conn = self._connect()
 
-        _, cur_state = self.status(self.label)
+        _, cur_state = self.status()
 
         waittime = 0
         while cur_state != desired_state:
             time.sleep(1)
             waittime += 1
-            _, cur_state = self.status(self.label)
+            _, cur_state = self.status()
             if waittime >= timeout:
                 self.logger.critical("ZOMG! %s not entering state %d" % \
                                     (self.label, desired_state))

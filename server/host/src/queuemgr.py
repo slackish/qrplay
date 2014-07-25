@@ -11,9 +11,14 @@ pyinotify
 import libvirtglue
 import logging
 import os
+import random
+import shutil
+import subprocess
 import sys
 
-from multiprocessing import Process, Queue
+import hacker
+
+from multiprocessing import Process, Queue, cpu_count
 from pyinotify import WatchManager, Notifier, Notifier, EventsCodes, ProcessEvent
 
 
@@ -24,7 +29,7 @@ DEFAULTS = {
         "OUT_DIR": "/var/local/deckard/reports",
         "ARCH_HOOK": "./archive_ext", 
         "RUNNERS": 1,
-        "VM_LABEL": "runner_%d",
+        "VM_LABEL": "runner-%d",
         }
 
 ###############################################################################
@@ -46,6 +51,7 @@ class FProcessor(ProcessEvent):
         self.in_dir = in_dir
         self.run_dir = run_dir
         self.out_dir = out_dir
+        self._find_latest()
         super(ProcessEvent, self).__init__()
 
 
@@ -55,7 +61,7 @@ class FProcessor(ProcessEvent):
         """
         highest = 1
         dirs = os.listdir(self.out_dir)
-        dirs.extend(os.listdir(self.run_dir)
+        dirs.extend(os.listdir(self.run_dir))
         for f in dirs:
             try:
                 canidate = int(f)
@@ -80,14 +86,14 @@ class FProcessor(ProcessEvent):
             self.logger.warn("failed to archive %s" % infile)
 
         # move to running directory
-        self.highest += 1
-        rundir = os.path.join(self.run_dir, str(self.highest))
+        self.count += 1
+        rundir = os.path.join(self.run_dir, str(self.count))
         os.mkdir(rundir)
         shutil.move(infile, rundir)
         runfile = os.path.join(rundir, event.name)
 
         # signal to start
-        self.file_comms.put(runfile)
+        self.comms.put(runfile)
 
 
 def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms):
@@ -119,13 +125,13 @@ def fire_off_vms(args, file_comms, logger):
     initialize vms
     """
     vm_managers = []
-    for i in xrange(1, 1 + multiprocessing.cpu_count()):
-        label = self.label % i
+    for i in xrange(1, DEFAULTS['RUNNERS']+1):
+        label = args['label'] % i
         vm_managers.append(Process(target=vm, args=(i,
-                                                    args.label,
+                                                    label,
                                                     file_comms,
                                                     logger,
-                                                    args.outdir)))
+                                                    args['outdir'])))
         vm_managers[-1].start()
 
 
@@ -158,6 +164,9 @@ def validate(args):
         sys.exit(1)
 
 
+def introduce():
+    print random.choice(hacker.logos)
+
 def main(args):
     file_comms = Queue()
     fw = Process(target=file_watcher, args=(args['indir'], 
@@ -167,7 +176,8 @@ def main(args):
                                             args['archive'], 
                                             file_comms)
                  )
-    fire_off_vms()
+    fire_off_vms(args, file_comms, logging)
+    introduce()
     fw.start()
     fw.join()
 

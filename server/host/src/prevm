@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-label=$i
+label=$1
 
 if [ ! -e "${IMG_BASE}/${label}.qcow2.backup" ]; then
     cp "${IMG_BASE}/${label}.qcow2" "${IMG_BASE}/${label}.qcow2.backup"

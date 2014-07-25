@@ -10,7 +10,7 @@ STRACE_CMD="timeout $TIMEOUTE -s KILL strace -o $MNT_DEST/strace -f -e trace=fil
 POST_RUN_HOOK="/sbin/poweroff"
 
 check_new() {
-    mnt_line=$(blkid | grep LABEL="RUN_THIS")
+    mnt_line=$(blkid | grep 'LABEL="RUN_THIS"')
     if [ -n "$mnt_line" ]; then
         dir_to_mnt=${mnt_line%%:*}
         mount $dir_to_mnt $MNT_DEST

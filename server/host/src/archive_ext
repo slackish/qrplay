@@ -2,4 +2,4 @@
 #
 # basically i just need to scp some stuff to another host
 
-scp -i id_rsa "$1" dumont:/tmp/$(date +%s)$(mktemp -u .in.XXXXXXXX)
+scp -i id_rsa "$1" root@dumont:/tmp/$(date +%s)$(mktemp -u .in.XXXXXXXX)
