@@ -3,10 +3,14 @@
 
 import libvirt
 import os
+import shutil
 import subprocess
+import sys
 import time
 import traceback
-import shutil
+import Queue
+
+
 
 DISK_TEMPLATE = \
 '''<disk type="file" device="disk">
@@ -40,11 +44,14 @@ def do_call(process_args, stdin=None):
 
     return errno, stdout, stderr
 
+
 class LibVirtGlue:
 
-    def __init__(self, label, file_comms, logger, store_dir, dsn='qemu:///system', \
-                    pre_hook="./prevm", post_hook="./postvm", \
-                    disk_hook="./prepdisk", store="./store", runtime=180):
+
+    def __init__(self, label, file_comms, logger, store_dir, ppid, \
+                    dsn='qemu:///system', pre_hook="./prevm", \
+                    post_hook="./postvm", disk_hook="./prepdisk", \
+                    store="./store", runtime=180):
         self.dsn = dsn
         self.logger = logger
         self.pre_hook = pre_hook
@@ -53,6 +60,7 @@ class LibVirtGlue:
         self.store = store
         self.store_dir = store_dir
         self.label = label
+        self.ppid = ppid
         self.file_comms = file_comms
         self.runtime = runtime
         #self._validate()
@@ -62,7 +70,7 @@ class LibVirtGlue:
         self.diskimg = None
 
         self.logger.info("%s VM Manager fired up" % self.label)
-        self.run_job()
+        self.wait_job()
 
 
     def _status(self):
@@ -161,6 +169,7 @@ class LibVirtGlue:
 
         self._disconnect()
 
+
     def job_module(self, jobfile):
         """
         Convert the file to what we need.
@@ -172,45 +181,60 @@ class LibVirtGlue:
         return new_jobfile
        
 
+    def wait_job(self):
+        """
+        More concise version to wait for the job.
+        """
+        ready=False
+        while True:
+            if not ready:
+                ready = True
+                self.logger.info("%s is DTF" % self.label)
+
+            if os.getppid() != self.ppid:
+                self.logger.critical("Parent is dead, I should die too")
+                sys.exit(0)
+
+            try:
+                jobfile = self.file_comms.get(block=True, timeout=1)
+                self.logger.info("Received jobfile %s for %s" % (jobfile, \
+                                                self.label))
+                self.run_job(jobfile)
+            except Queue.Empty:
+                continue
+            except:
+                self.logger.critical(traceback.format_exc())
+
     
     def run_job(self):
         """
         Wait for a job to come in and execute it.
         """
-        while True:
-            try:
-                self.logger.info("%s is DTF" % self.label)
-                jobfile = self.file_comms.get()
-                self.logger.info("Received jobfile %s for %s" % (jobfile, \
-                                                self.label))
+        # figure out job module, assume ruby for now
+        jobfile = self.job_module(jobfile)
+        self.logger.info("converted %s into ruby" % jobfile)
 
-                # figure out job module, assume ruby for now
-                jobfile = self.job_module(jobfile)
-                self.logger.info("converted %s into ruby" % jobfile)
+        # start
+        self.start(jobfile)
 
-                # start
-                self.start(jobfile)
+        # wait for completion
+        self.wait_status(SHUTOFF, timeout=self.runtime)
+        self.logger.info("jobfile %s completed on %s" % (jobfile, \
+                                    self.label))
 
-                # wait for completion
-                self.wait_status(SHUTOFF, timeout=self.runtime)
-                self.logger.info("jobfile %s completed on %s" % (jobfile, \
-                                                self.label))
+        # prep things to store
+        basejobdir = os.path.dirname(jobfile)
+        shutil.move(basejobdir, self.store_dir)
 
-                # prep things to store
-                basejobdir = os.path.dirname(jobfile)
-                shutil.move(basejobdir, self.store_dir)
+        # run post-game thing as needed
+        self.logger.info("%s performing store" % self.label)
+        jobnum = os.path.basename(basejobdir)
 
-                # run post-game thing as needed
-                self.logger.info("%s performing store" % self.label)
-                jobnum = os.path.basename(basejobdir)
+        subprocess.call([self.store, self.diskimg, \
+                os.path.join(self.store_dir, jobnum)])
 
-                subprocess.call([self.store, self.diskimg, \
-                            os.path.join(self.store_dir, jobnum)])
-
-                # reset
-                self.cleanup()
-            except:
-                self.logger.critical(traceback.format_exc())
+        # reset
+        self.cleanup()
         return
             
 

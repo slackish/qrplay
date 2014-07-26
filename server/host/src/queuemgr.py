@@ -96,19 +96,22 @@ class FProcessor(ProcessEvent):
         self.comms.put(runfile)
 
 
-def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms):
+def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms, ppid):
     wm = WatchManager()
     mask = EventsCodes.ALL_FLAGS['IN_CLOSE_WRITE']
-    notifier = Notifier(wm, FProcessor(in_dir, run_dir, out_dir, logger, archive, file_comms))
+    notifier = Notifier(wm, FProcessor(in_dir, run_dir, out_dir, logger, \
+                                    archive, file_comms))
     wdd = wm.add_watch(in_dir, mask, rec=True)
     while True: 
         try:
-            # process the queue of events as explained above
             notifier.process_events()
-            if notifier.check_events():
+            if notifier.check_events(timeout=30000):
                 notifier.read_events()
             else:
-                self.logger.debug("No new files in %s" % in_dir)
+                logger.debug("No new files in %s" % in_dir)
+            if os.getppid() != ppid:
+                logger.critical("Parent is dead, I should die as well")
+                sys.exit(0)
         except KeyboardInterrupt:
             notifier.stop()
             break
@@ -131,12 +134,13 @@ def fire_off_vms(args, file_comms, logger):
                                                     label,
                                                     file_comms,
                                                     logger,
-                                                    args['outdir'])))
+                                                    args['outdir'],
+                                                    os.getpid())))
         vm_managers[-1].start()
 
 
-def vm(ident, label, file_comms, logger, store_dir):
-    libvirtglue.LibVirtGlue(label, file_comms, logger, store_dir)
+def vm(ident, label, file_comms, logger, store_dir, ppid):
+    libvirtglue.LibVirtGlue(label, file_comms, logger, store_dir, ppid)
     
     
 
@@ -174,7 +178,8 @@ def main(args):
                                             args['outdir'], 
                                             logging, 
                                             args['archive'], 
-                                            file_comms)
+                                            file_comms,
+                                            os.getpid())
                  )
     fire_off_vms(args, file_comms, logging)
     introduce()
@@ -210,7 +215,6 @@ if __name__ == '__main__':
             help='VM label to pull from',
             default=DEFAULTS["VM_LABEL"]
             )
-    args = vars(parser.parse_args())
     args = vars(parser.parse_args())
 
     logging.basicConfig(level=logging.DEBUG)
