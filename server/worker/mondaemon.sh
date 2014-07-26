@@ -7,7 +7,7 @@ STATUS_FILE=/tmp/runner.status
 MNT_DEST="/mnt"
 TIMEOUT=120
 STRACE_CMD="timeout -s KILL $TIMEOUT strace -o $MNT_DEST/strace -f -e trace=file -u nobody"
-POST_RUN_HOOK="/sbin/poweroff"
+POST_RUN_HOOK="echo o > /proc/sysrq-trigger"
 
 check_new() {
     mnt_line=$(blkid | grep 'LABEL="RUN_THIS"')
@@ -39,6 +39,7 @@ run_code() {
     else
         $STRACE_CMD $MNT_DEST/prog 1> $MNT_DEST/1 2> $MNT_DEST/2
     fi
+    copy_files
     umount $MNT_DEST
 
     if [ -n "$POST_RUN_HOOK" -a -x "$POST_RUN_HOOK" ]; then

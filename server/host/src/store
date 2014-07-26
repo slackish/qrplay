@@ -23,7 +23,7 @@ if [ "$mnterrno" -gt 0 ]; then
     exit 2
 fi
 
-cp -r ${mountdir} ${destdir}
+cp -r ${mountdir}/* ${destdir}
 
 umount ${mountdir}
 

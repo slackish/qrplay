@@ -28,6 +28,18 @@ LAST) = range(9)
 
 JOB_MODULES = { "ruby": "./run_modules/ruby.sh" }
 
+
+def do_call(process_args, stdin=None):
+    """
+    Attempt to capture more than I think I'll need
+    """
+    process = subprocess.Popen(process_args, stdin=subprocess.PIPE, \
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate(stdin)
+    errno = process.returncode
+
+    return errno, stdout, stderr
+
 class LibVirtGlue:
 
     def __init__(self, label, file_comms, logger, store_dir, dsn='qemu:///system', \
@@ -92,10 +104,13 @@ class LibVirtGlue:
 
         # pre hook
         if self.pre_hook != None:
-            if subprocess.call([self.pre_hook, self.label]):
+            errno, stdout, stderr =  do_call([self.pre_hook, self.label])
+            if errno == 0:
                 self.logger.debug("Prehook '%s' ok" % self.pre_hook)
             else:
-                self.logger.debug("Prehook '%s' returned error" % self.pre_hook)
+                self.logger.debug("Prehook '%s' returned errno %d " % \
+                            (self.pre_hook, errno))
+                self.logger.debug("Prehook with stderr: %s" % stderr)
 
         runnable, state = self.status()
         if not runnable:
@@ -187,7 +202,10 @@ class LibVirtGlue:
 
                 # run post-game thing as needed
                 self.logger.info("%s performing store" % self.label)
-                subprocess.call([self.store, self.diskimg, self.store_dir])
+                jobnum = os.path.basename(basejobdir)
+
+                subprocess.call([self.store, self.diskimg, \
+                            os.path.join(self.store_dir, jobnum)])
 
                 # reset
                 self.cleanup()
