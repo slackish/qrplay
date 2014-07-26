@@ -28,7 +28,7 @@ DEFAULTS = {
         "RUN_DIR": "/var/local/deckard/runqueue",
         "OUT_DIR": "/var/local/deckard/reports",
         "ARCH_HOOK": "./archive_ext", 
-        "RUNNERS": 1,
+        "RUNNERS": 8,
         "VM_LABEL": "runner-%d",
         }
 
