@@ -42,7 +42,7 @@ run_code() {
     copy_files
     umount $MNT_DEST
 
-    if [ -n "$POST_RUN_HOOK" -a -x "$POST_RUN_HOOK" ]; then
+    if [ -n "$POST_RUN_HOOK" ]; then
         eval $POST_RUN_HOOK
     fi
 }
