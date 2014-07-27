@@ -28,3 +28,4 @@ cp -r ${mountdir}/* ${destdir}
 umount ${mountdir}
 
 rmdir ${mountdir}
+rm ${diskimg}

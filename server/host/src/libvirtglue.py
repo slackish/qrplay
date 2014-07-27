@@ -206,13 +206,16 @@ class LibVirtGlue:
                 self.logger.critical(traceback.format_exc())
 
     
-    def run_job(self):
+    def run_job(self, jobfile):
         """
         Wait for a job to come in and execute it.
         """
         # figure out job module, assume ruby for now
         jobfile = self.job_module(jobfile)
         self.logger.info("converted %s into ruby" % jobfile)
+
+        # record starting time
+        self.store_time(os.path.join(os.path.dirname(jobfile), "starttime"))
 
         # start
         self.start(jobfile)
@@ -222,25 +225,32 @@ class LibVirtGlue:
         self.logger.info("jobfile %s completed on %s" % (jobfile, \
                                     self.label))
 
+
         # prep things to store
         basejobdir = os.path.dirname(jobfile)
         shutil.move(basejobdir, self.store_dir)
 
         # run post-game thing as needed
         self.logger.info("%s performing store" % self.label)
-        jobnum = os.path.basename(basejobdir)
+        jobdir = os.path.join(self.store_dir, os.path.basename(basejobdir))
 
-        subprocess.call([self.store, self.diskimg, \
-                os.path.join(self.store_dir, jobnum)])
+        subprocess.call([self.store, self.diskimg, jobdir ])
 
         # reset
         self.cleanup()
+
+        # end runtime
+        self.store_time(os.path.join(jobdir, "endtime"))
         return
             
 
     def force_stop(self):
         """ Fire up a machine """
         pass
+
+
+    def store_time(self, wfile):
+        open(wfile, "w").write("%f" % time.time())
 
 
     def cleanup(self):
