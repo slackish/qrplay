@@ -33,7 +33,7 @@ cp ${PREPPED_IMAGE} ${new_disk}
 mount -o loop ${new_disk} ${dest_mount}
 
 while (( "$#" )); do
-    cp $1 ${dest_mount}
+    cp $1/* ${dest_mount}
 shift
 done
 
