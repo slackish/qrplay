@@ -94,11 +94,14 @@ class FProcessor(ProcessEvent):
 
         # signal to start
         self.comms.put(runfile)
+    
+    def process_IN_MOVED_TO(self, event):
+        self.process_IN_CLOSE_WRITE(event)
 
 
 def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms, ppid):
     wm = WatchManager()
-    mask = EventsCodes.ALL_FLAGS['IN_CLOSE_WRITE']
+    mask = EventsCodes.ALL_FLAGS['IN_CLOSE_WRITE'] | EventsCodes.ALL_FLAGS['IN_MOVED_TO']
     notifier = Notifier(wm, FProcessor(in_dir, run_dir, out_dir, logger, \
                                     archive, file_comms))
     wdd = wm.add_watch(in_dir, mask, rec=True)
