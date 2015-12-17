@@ -15,8 +15,9 @@ import random
 import shutil
 import subprocess
 import sys
+import time
 
-import hacker
+import banner
 
 from multiprocessing import Process, Queue, cpu_count
 from pyinotify import WatchManager, Notifier, Notifier, EventsCodes, ProcessEvent
@@ -108,7 +109,7 @@ def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms, ppid):
     while True: 
         try:
             notifier.process_events()
-            if notifier.check_events(timeout=30000):
+            if notifier.check_events(timeout=3000):
                 notifier.read_events()
             else:
                 logger.debug("No new files in %s" % in_dir)
@@ -124,7 +125,6 @@ def file_watcher(in_dir, run_dir, out_dir, logger, archive, file_comms, ppid):
 ###############################################################################
 # Ensure a VM is available
 # Run Thing
-# Wait for 
 
 def fire_off_vms(args, file_comms, logger):
     """
@@ -140,12 +140,42 @@ def fire_off_vms(args, file_comms, logger):
                                                     args['outdir'],
                                                     os.getpid())))
         vm_managers[-1].start()
+    return vm_managers
 
 
 def vm(ident, label, file_comms, logger, store_dir, ppid):
     libvirtglue.LibVirtGlue(label, file_comms, logger, store_dir, ppid)
     
-    
+###############################################################################
+# Sub Process Monitoring
+###############################################################################
+# ensure the filewatcher is running
+# ensure vms are healthy/happy
+
+def procmon(vm_managers, filewatcher):
+    while True:
+        killall = False
+        exitcode = None
+        for vm_manager in vm_managers:
+            if vm_manager.exitcode and abs(vm_manager.exitcode) > 0:
+                logging.critical("A VM manager died.")
+                exitcode = vm_manager.exitcode
+                killall = True
+
+        if filewatcher.exitcode and abs(filewatcher.exitcode) > 0:
+            logging.critical("Filewatcher died")
+            exitcode = filewatcher.exitcode
+            killall = True
+
+
+        if killall:
+            filewatcher.terminate()
+            for vm_manager in vm_managers:
+                vm_manager.terminate()
+            return exitcode
+
+        time.sleep(1)
+
 
 ###############################################################################
 # Startup 
@@ -154,6 +184,10 @@ def vm(ident, label, file_comms, logger, store_dir, ppid):
 def validate(args):
     passing = True
     log = []
+
+    if os.getuid() != 0:
+        log.append("sudo su  # I need root")
+        passing = False
     
     for d in (args['indir'], args['outdir'], args['rundir']):
         # ensure we can rwx each dir
@@ -172,11 +206,12 @@ def validate(args):
 
 
 def introduce():
-    print random.choice(hacker.logos)
+    print random.choice(banner.logos)
 
 def main(args):
+    introduce()
     file_comms = Queue()
-    fw = Process(target=file_watcher, args=(args['indir'], 
+    filewatcher = Process(target=file_watcher, args=(args['indir'], 
                                             args['rundir'], 
                                             args['outdir'], 
                                             logging, 
@@ -184,10 +219,10 @@ def main(args):
                                             file_comms,
                                             os.getpid())
                  )
-    fire_off_vms(args, file_comms, logging)
-    introduce()
-    fw.start()
-    fw.join()
+    vm_managers = fire_off_vms(args, file_comms, logging)
+    filewatcher.start()
+    return procmon(vm_managers, filewatcher)
+
 
 
 if __name__ == '__main__':

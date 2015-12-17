@@ -188,6 +188,12 @@ class LibVirtGlue:
         ready=False
         while True:
             if not ready:
+                conn = self._connect()
+                try:
+                    dom = conn.lookupByName(self.label)
+                except libvirt.libvirtError:
+                    self.logger.error("%s is where again?  I don't see it." % self.label)
+                    sys.exit(1)
                 ready = True
                 self.logger.info("%s is DTF" % self.label)
 
