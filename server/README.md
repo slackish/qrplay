@@ -9,3 +9,10 @@ it.
 
 2 parts, the host and the runner.  The runner does the *legwork* by executing
 code. The host is what manages incoming code and assigns it to a runner.
+
+Building a worker
+-----------------
+
+Debian netinstall, make sure to only install ssh server and system essentials
+
+apt-get install sudo vim build-essential
