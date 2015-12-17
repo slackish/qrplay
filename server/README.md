@@ -11,14 +11,16 @@ it.
 code. The host is what manages incoming code and assigns it to a runner.
 
 
-Building a Host VM
-------------------
+Building a Host
+---------------
 
 
 
 Building a Worker
 -----------------
 
-Debian netinstall, make sure to only install ssh server and system essentials
+Ubuntu server 14.04, make sure to 
+ * no server updates
+ * install ssh server
 
 apt-get install sudo vim build-essential
