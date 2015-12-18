@@ -51,12 +51,14 @@ class LibVirtGlue:
     def __init__(self, label, file_comms, logger, store_dir, ppid, \
                     dsn='qemu:///system', pre_hook="./prevm", \
                     post_hook="./postvm", disk_hook="./prepdisk", \
+                    data_disk_hook="./check_data", \
                     store="./store", runtime=180):
         self.dsn = dsn
         self.logger = logger
         self.pre_hook = pre_hook
         self.post_hook = post_hook
         self.disk_hook = disk_hook
+        self.data_disk_hook = data_disk_hook
         self.store = store
         self.store_dir = store_dir
         self.label = label
@@ -83,10 +85,10 @@ class LibVirtGlue:
 
     def _validate(self):
         """
-        Ensure all VMs are DTF (down to finish)
+        Ensure all VMs are Good to Go (GtG)
         """
         if not self._status():
-            raise Exception("VM %s not DTF" % self.label)
+            raise Exception("VM %s not GtG" % self.label)
 
         if not (self.pre_hook != None and os.path.isfile(self.pre_hook) and \
                         os.access(self.pre_hook, os.X_OK)):
@@ -99,7 +101,7 @@ class LibVirtGlue:
             self.disk_hook = None
 
 
-    def start(self, diskimg_param):
+    def start(self, diskimg_param, data_disk):
         """ 
         Fire up a machine 
 
@@ -195,7 +197,7 @@ class LibVirtGlue:
                     self.logger.error("%s is where again?  I don't see it." % self.label)
                     sys.exit(1)
                 ready = True
-                self.logger.info("%s is DTF" % self.label)
+                self.logger.info("%s is GtG" % self.label)
 
             if os.getppid() != self.ppid:
                 self.logger.critical("Parent is dead, I should die too")
